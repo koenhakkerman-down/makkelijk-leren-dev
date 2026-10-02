@@ -14,7 +14,7 @@ export default function LessonsPage() {
             { title: 'Nederlands taal', questions: 15, level: 'Beginner' },
             { title: 'Geschiedenis', questions: 10, level: 'Vorderingen' },
             { title: 'Chemie', questions: 9, level: 'Gemiddeld' },
-            { title: 'Kunstmatige intelligentie', questions: 11, level: 'Gevorderd' }
+            { title: 'Kunstmatige intelligentie', questions: 11, level: 'Gevorderd' },
           ].map((lesson) => (
             <article key={lesson.title} className="card">
               <div className="mb-4 flex items-center justify-between">

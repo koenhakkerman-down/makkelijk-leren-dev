@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'MakkelijkLeren',
-  description: 'Modern learning platform for practice, streaks and progress.'
+  description: 'MakkelijkLeren — een moderne leerapp voor quizzen, streaks en voortgang.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

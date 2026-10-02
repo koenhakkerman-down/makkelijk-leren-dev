@@ -1,10 +1,10 @@
 import Link from 'next/link';
 
-const cards = [
-  { label: 'Dagelijks doel', value: '5/5 vragen', tone: 'primary' },
-  { label: 'Streak', value: '12 dagen', tone: 'accent' },
-  { label: 'Leertijd', value: '2h 40m', tone: 'slate' },
-  { label: 'Badges', value: '8 behaald', tone: 'primary' },
+const statCards = [
+  { label: 'Dagelijks doel', value: '5/5 vragen' },
+  { label: 'Streak', value: '12 dagen' },
+  { label: 'Leertijd', value: '2h 40m' },
+  { label: 'Badges', value: '8 behaald' },
 ];
 
 export default function DashboardPage() {
@@ -20,7 +20,7 @@ export default function DashboardPage() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {cards.map((card) => (
+          {statCards.map((card) => (
             <div key={card.label} className="card">
               <div className="text-sm text-slate-300">{card.label}</div>
               <div className="mt-4 text-3xl font-black text-white">{card.value}</div>
@@ -38,8 +38,8 @@ export default function DashboardPage() {
               {[
                 'Quiz "Wiskunde basics" afgerond',
                 'Dagelijks doel gehaald',
-                'Badge "Eerste quiz" unlocked',
-                'Nieuwe set toegevoegd: Biologie 1'
+                'Badge "Eerste quiz" ontgrendeld',
+                'Nieuwe set toegevoegd: Biologie 1',
               ].map((item) => (
                 <div key={item} className="flex items-center justify-between border-b border-slate-700 pb-3 last:border-none last:pb-0">
                   <span>{item}</span>

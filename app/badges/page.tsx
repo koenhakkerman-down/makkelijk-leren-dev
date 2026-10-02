@@ -14,7 +14,7 @@ export default function BadgesPage() {
             ['Leergeluk', 'Beantwoord 50 vragen goed.', 'Locked'],
             ['Snelste leerling', 'Bouw 20 minuten leertijd op.', 'Locked'],
             ['Doelverdubbeler', 'Voltooi 3 dagelijkse doelen.', 'Unlocked'],
-            ['Kennisrover', 'Ontdek 5 verschillende lessen.', 'Locked']
+            ['Kennisrover', 'Ontdek 5 verschillende lessen.', 'Locked'],
           ].map(([name, description, status]) => (
             <div key={name} className="card">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 text-2xl font-black">

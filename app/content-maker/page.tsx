@@ -17,7 +17,7 @@ export default function ContentMakerPage() {
             'Wiskunde challenge',
             'Nederlands kernbegrippen',
             'Rekenen klas 2',
-            'Geschiedenis samenvattingen'
+            'Geschiedenis samenvattingen',
           ].map((title) => (
             <div key={title} className="card">
               <div className="flex items-center justify-between">

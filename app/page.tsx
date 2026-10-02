@@ -45,7 +45,7 @@ export default function HomePage() {
             Leer sneller, blijf gemotiveerd en bouw elke dag een streak op.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-slate-300">
-            MakkelijkLeren combineert kleine leerzets, quizzen, progressie, badges en dagelijkse doelen in één moderne leerervaring.
+            MakkelijkLeren combineert kleine leerzets, quizzen, vooruitgang, badges en dagelijkse doelen in één moderne leerervaring.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
