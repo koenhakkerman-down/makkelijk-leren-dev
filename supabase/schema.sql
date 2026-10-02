@@ -1,291 +1,304 @@
--- MakkelijkLeren Database Schema
--- Run this in Supabase SQL Editor
-
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create extension if not exists "pgcrypto";
 
--- PROFILES
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT UNIQUE,
-  full_name TEXT,
-  avatar_url TEXT,
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'content_maker', 'admin')),
-  xp INTEGER DEFAULT 0,
-  level INTEGER DEFAULT 1,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+-- Roles
+create table if not exists public.roles (
+  id text primary key,
+  label text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
--- SUBJECTS
-CREATE TABLE subjects (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  description TEXT,
-  color TEXT DEFAULT '#eab308',
-  icon TEXT DEFAULT 'book',
-  created_by UUID REFERENCES profiles(id),
-  is_published BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- Profiles
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  full_name text,
+  avatar_url text,
+  role text not null default 'user' references public.roles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
--- TOPICS
-CREATE TABLE topics (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  order_index INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+create index if not exists idx_profiles_role on public.profiles(role);
+
+-- Subjects / topics
+create table if not exists public.subjects (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
--- LESSONS
-CREATE TABLE lessons (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  order_index INTEGER DEFAULT 0,
-  is_published BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.topics (
+  id uuid primary key default gen_random_uuid(),
+  subject_id uuid not null references public.subjects(id) on delete cascade,
+  name text not null,
+  slug text not null,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique(subject_id, slug)
 );
 
--- LESSON BLOCKS
-CREATE TABLE lesson_blocks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
-  block_type TEXT NOT NULL CHECK (block_type IN ('text', 'image', 'video', 'heading')),
-  content JSONB NOT NULL,
-  order_index INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- Lessons / sets
+create table if not exists public.lessons (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  description text,
+  topic_id uuid references public.topics(id),
+  created_by uuid not null references public.profiles(id),
+  status text not null default 'draft' check (status in ('draft','published','archived')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
--- QUESTIONS
-CREATE TABLE questions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
-  question_type TEXT NOT NULL CHECK (question_type IN ('multiple_choice', 'true_false', 'fill_blank', 'matching', 'ordering', 'hotspot', 'drag_drop', 'short_answer', 'essay', 'matrix', 'likert')),
-  question_text TEXT NOT NULL,
-  explanation TEXT,
-  difficulty TEXT DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
-  points INTEGER DEFAULT 10,
-  time_limit INTEGER,
-  created_by UUID REFERENCES profiles(id),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.lesson_blocks (
+  id uuid primary key default gen_random_uuid(),
+  lesson_id uuid not null references public.lessons(id) on delete cascade,
+  block_type text not null check (block_type in ('text','image','explanation','question','section')),
+  sort_order int not null default 0,
+  content jsonb,
+  created_by uuid not null references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
--- QUESTION OPTIONS
-CREATE TABLE question_options (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
-  option_text TEXT NOT NULL,
-  is_correct BOOLEAN DEFAULT false,
-  order_index INTEGER DEFAULT 0,
-  match_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- Questions and options
+create table if not exists public.questions (
+  id uuid primary key default gen_random_uuid(),
+  lesson_id uuid not null references public.lessons(id) on delete cascade,
+  question_type text not null check (
+    question_type in (
+      'multiple_choice_single',
+      'multiple_choice_multiple',
+      'true_false',
+      'short_answer',
+      'fill_blank',
+      'matching',
+      'ordering',
+      'flashcard',
+      'image_choice',
+      'image_input',
+      'math'
+    )
+  ),
+  prompt text not null,
+  explanation text,
+  media_url text,
+  created_by uuid not null references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
--- MEDIA
-CREATE TABLE media (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  file_name TEXT NOT NULL,
-  file_type TEXT NOT NULL,
-  file_url TEXT NOT NULL,
-  file_size INTEGER,
-  uploaded_by UUID REFERENCES profiles(id),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.question_options (
+  id uuid primary key default gen_random_uuid(),
+  question_id uuid not null references public.questions(id) on delete cascade,
+  option_text text not null,
+  is_correct boolean not null default false,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now()
 );
 
--- QUIZ SESSIONS
-CREATE TABLE quiz_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  topic_id UUID REFERENCES topics(id),
-  mode TEXT NOT NULL CHECK (mode IN ('practice', 'exam', 'challenge')),
-  score INTEGER DEFAULT 0,
-  total_questions INTEGER DEFAULT 0,
-  correct_answers INTEGER DEFAULT 0,
-  time_spent INTEGER DEFAULT 0,
-  xp_earned INTEGER DEFAULT 0,
-  completed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- Media
+create table if not exists public.media (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  storage_path text not null,
+  mime_type text not null,
+  file_size bigint not null default 0,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
--- QUIZ ANSWERS
-CREATE TABLE quiz_answers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  session_id UUID REFERENCES quiz_sessions(id) ON DELETE CASCADE,
-  question_id UUID REFERENCES questions(id),
-  selected_option_id UUID,
-  answer_text TEXT,
-  is_correct BOOLEAN DEFAULT false,
-  time_spent INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- Quiz sessions
+create table if not exists public.quiz_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  lesson_id uuid references public.lessons(id),
+  started_at timestamptz not null default now(),
+  completed_at timestamptz,
+  elapsed_seconds int not null default 0,
+  total_questions int not null default 0,
+  correct_answers int not null default 0,
+  incorrect_answers int not null default 0,
+  percentage numeric not null default 0,
+  created_at timestamptz not null default now()
 );
 
--- DAILY GOALS
-CREATE TABLE daily_goals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  questions_goal INTEGER DEFAULT 10,
-  minutes_goal INTEGER DEFAULT 15,
-  xp_goal INTEGER DEFAULT 50,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, date)
+create table if not exists public.quiz_answers (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.quiz_sessions(id) on delete cascade,
+  question_id uuid not null references public.questions(id),
+  selected_answers jsonb,
+  is_correct boolean not null default false,
+  response_time_ms int not null default 0,
+  created_at timestamptz not null default now()
 );
 
--- DAILY GOAL PROGRESS
-CREATE TABLE daily_goal_progress (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  goal_id UUID REFERENCES daily_goals(id) ON DELETE CASCADE,
-  questions_answered INTEGER DEFAULT 0,
-  minutes_spent INTEGER DEFAULT 0,
-  xp_earned INTEGER DEFAULT 0,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+-- Progress and goals
+create table if not exists public.user_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  lesson_id uuid references public.lessons(id),
+  completed boolean not null default false,
+  completed_at timestamptz,
+  score numeric not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id, lesson_id)
 );
 
--- STREAKS
-CREATE TABLE streaks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
-  current_streak INTEGER DEFAULT 0,
-  longest_streak INTEGER DEFAULT 0,
-  last_activity_date DATE,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.daily_goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  goal_type text not null check (goal_type in ('questions','time_minutes')),
+  target_value int not null,
+  effective_date date not null,
+  created_at timestamptz not null default now(),
+  unique(user_id, effective_date)
 );
 
--- BADGES
-CREATE TABLE badges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  description TEXT,
-  icon TEXT DEFAULT 'trophy',
-  criteria JSONB,
-  xp_reward INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.daily_goal_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  goal_id uuid not null references public.daily_goals(id) on delete cascade,
+  progress_value int not null default 0,
+  completed boolean not null default false,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(goal_id)
 );
 
--- USER BADGES
-CREATE TABLE user_badges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  badge_id UUID REFERENCES badges(id) ON DELETE CASCADE,
-  earned_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, badge_id)
+-- Streaks and badges
+create table if not exists public.streaks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  current_streak int not null default 0,
+  longest_streak int not null default 0,
+  last_goal_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id)
 );
 
--- USER STATS
-CREATE TABLE user_stats (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
-  total_xp INTEGER DEFAULT 0,
-  total_questions INTEGER DEFAULT 0,
-  total_correct INTEGER DEFAULT 0,
-  total_time_spent INTEGER DEFAULT 0,
-  quizzes_completed INTEGER DEFAULT 0,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.badges (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name text not null,
+  description text,
+  criteria jsonb not null,
+  created_at timestamptz not null default now()
 );
 
--- REPORTS
-CREATE TABLE reports (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  reporter_id UUID REFERENCES profiles(id),
-  reported_type TEXT NOT NULL CHECK (reported_type IN ('question', 'user', 'content')),
-  reported_id UUID,
-  reason TEXT,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved')),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+create table if not exists public.user_badges (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  badge_id uuid not null references public.badges(id) on delete cascade,
+  unlocked_at timestamptz not null default now(),
+  unique(user_id, badge_id)
 );
 
--- AUDIT LOGS
-CREATE TABLE audit_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES profiles(id),
-  action TEXT NOT NULL,
-  entity_type TEXT,
-  entity_id UUID,
-  details JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- Leaderboard and statistics
+create table if not exists public.leaderboard_stats (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  total_questions int not null default 0,
+  correct_answers int not null default 0,
+  wrong_answers int not null default 0,
+  accuracy numeric not null default 0,
+  total_learning_minutes int not null default 0,
+  current_streak int not null default 0,
+  longest_streak int not null default 0,
+  updated_at timestamptz not null default now(),
+  unique(user_id)
 );
 
--- INDEXES
-CREATE INDEX idx_topics_subject ON topics(subject_id);
-CREATE INDEX idx_lessons_topic ON lessons(topic_id);
-CREATE INDEX idx_lesson_blocks_lesson ON lesson_blocks(lesson_id);
-CREATE INDEX idx_questions_topic ON questions(topic_id);
-CREATE INDEX idx_question_options_question ON question_options(question_id);
-CREATE INDEX idx_quiz_sessions_user ON quiz_sessions(user_id);
-CREATE INDEX idx_quiz_answers_session ON quiz_answers(session_id);
-CREATE INDEX idx_user_badges_user ON user_badges(user_id);
-
--- RLS POLICIES
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lesson_blocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE question_options ENABLE ROW LEVEL SECURITY;
-ALTER TABLE quiz_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE quiz_answers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE daily_goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE daily_goal_progress ENABLE ROW LEVEL SECURITY;
-ALTER TABLE streaks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_stats ENABLE ROW LEVEL SECURITY;
-
--- Public read for published content
-CREATE POLICY "Public read published subjects" ON subjects FOR SELECT USING (is_published = true);
-CREATE POLICY "Public read topics" ON topics FOR SELECT USING (subject_id IN (SELECT id FROM subjects WHERE is_published = true));
-CREATE POLICY "Public read lessons" ON lessons FOR SELECT USING (is_published = true);
-CREATE POLICY "Public read questions" ON questions FOR SELECT USING (topic_id IN (SELECT topic_id FROM topics WHERE subject_id IN (SELECT id FROM subjects WHERE is_published = true)));
-CREATE POLICY "Public read badges" ON badges FOR SELECT USING (true);
-
--- Users manage own data
-CREATE POLICY "Users manage own profile" ON profiles FOR ALL USING (auth.uid() = id);
-CREATE POLICY "Users manage own quiz sessions" ON quiz_sessions FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users manage own answers" ON quiz_answers FOR ALL USING (session_id IN (SELECT id FROM quiz_sessions WHERE user_id = auth.uid()));
-CREATE POLICY "Users manage own goals" ON daily_goals FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users manage own streaks" ON streaks FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users manage own badges" ON user_badges FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users manage own stats" ON user_stats FOR ALL USING (auth.uid() = user_id);
-
--- Content makers manage content
-CREATE POLICY "Content makers manage subjects" ON subjects FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('content_maker', 'admin'))
-);
-CREATE POLICY "Content makers manage topics" ON topics FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('content_maker', 'admin'))
-);
-CREATE POLICY "Content makers manage lessons" ON lessons FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('content_maker', 'admin'))
-);
-CREATE POLICY "Content makers manage questions" ON questions FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('content_maker', 'admin'))
+-- Reports and audit log
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reported_by uuid not null references public.profiles(id),
+  lesson_id uuid references public.lessons(id),
+  question_id uuid references public.questions(id),
+  reason text not null,
+  status text not null default 'open' check (status in ('open','in_review','resolved','rejected')),
+  reporter_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
--- Admins can do everything
-CREATE POLICY "Admins manage all" ON audit_logs FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-);
-CREATE POLICY "Admins manage reports" ON reports FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles(id),
+  action text not null,
+  entity_type text,
+  entity_id uuid,
+  metadata jsonb,
+  created_at timestamptz not null default now()
 );
 
--- Trigger to create profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, full_name, avatar_url)
-  VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url');
-  INSERT INTO public.streaks (user_id) VALUES (NEW.id);
-  INSERT INTO public.user_stats (user_id) VALUES (NEW.id);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Seed roles
+insert into public.roles (id, label) values
+  ('user', 'Gebruiker'),
+  ('content_maker', 'Content Maker'),
+  ('admin', 'Admin')
+on conflict (id) do nothing;
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- Example badges
+insert into public.badges (code, name, description, criteria)
+values
+  ('first_quiz', 'Eerste quiz', 'Voltooi je eerste quiz.', '{"type": "first_quiz"}'),
+  ('daily_goal', 'Dagelijks doel', 'Voltooi je dagelijkse doel.', '{"type": "daily_goal"}'),
+  ('streak_7', 'Streak Master', 'Behaal 7 dagen achter elkaar.', '{"type": "streak", "min_days": 7}')
+on conflict (code) do nothing;
+
+-- RLS
+alter table public.roles enable row level security;
+alter table public.profiles enable row level security;
+alter table public.subjects enable row level security;
+alter table public.topics enable row level security;
+alter table public.lessons enable row level security;
+alter table public.lesson_blocks enable row level security;
+alter table public.questions enable row level security;
+alter table public.question_options enable row level security;
+alter table public.media enable row level security;
+alter table public.quiz_sessions enable row level security;
+alter table public.quiz_answers enable row level security;
+alter table public.user_progress enable row level security;
+alter table public.daily_goals enable row level security;
+alter table public.daily_goal_progress enable row level security;
+alter table public.streaks enable row level security;
+alter table public.badges enable row level security;
+alter table public.user_badges enable row level security;
+alter table public.leaderboard_stats enable row level security;
+alter table public.reports enable row level security;
+alter table public.audit_logs enable row level security;
+
+-- Basic policies
+create policy "Users can see own profile" on public.profiles for select using (auth.uid() = id);
+create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
+create policy "Users can insert own profile" on public.profiles for insert with check (auth.uid() = id);
+
+create policy "Anyone can read published lessons" on public.lessons for select using (status = 'published' or auth.uid() = created_by);
+create policy "Content makers can manage own lessons" on public.lessons for all using (auth.uid() = created_by) with check (auth.uid() = created_by);
+
+create policy "Users can read their own stats" on public.leaderboard_stats for select using (auth.uid() = user_id);
+create policy "Users can read own quiz sessions" on public.quiz_sessions for select using (auth.uid() = user_id);
+create policy "Users can insert own quiz sessions" on public.quiz_sessions for insert with check (auth.uid() = user_id);
+
+create policy "Admins can read all reports" on public.reports for select using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+create policy "Users can create reports" on public.reports for insert with check (auth.uid() = reported_by);
+
+create policy "Admins can view all audit logs" on public.audit_logs for select using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+-- Grant service role access for server-side operations
+create role postgres login;

@@ -1,1 +1,40 @@
-import type { Config } from 'tailwindcss'\n\nconst config: Config = {\n  content: [\n    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',\n    './src/components/**/*.{js,ts,jsx,tsx,mdx}',\n    './src/app/**/*.{js,ts,jsx,tsx,mdx}',\n  ],\n  theme: {\n    extend: {\n      colors: {\n        brand: { 50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04', 700: '#a16207', 800: '#854d0e', 900: '#713f12' },\n        accent: { 500: '#8b5cf6', 600: '#7c3aed' }\n      },\n      animation: {\n        'pop-in': 'pop-in 0.3s ease-out',\n        'slide-up': 'slide-up 0.4s ease-out',\n        'confetti-fall': 'confetti-fall 3s ease-out forwards'\n      },\n      keyframes: {\n        'pop-in': { '0%': { transform: 'scale(0.8)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },\n        'slide-up': { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },\n        'confetti-fall': { '0%': { transform: 'translateY(-100vh) rotate(0deg)' }, '100%': { transform: 'translateY(100vh) rotate(720deg)' } }\n      }\n    },\n  },\n  plugins: [],\n};\nexport default config;
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  content: ['./app/**/*.{js,ts,jsx,tsx,mdx}', './components/**/*.{js,ts,jsx,tsx,mdx}', './lib/**/*.{js,ts,jsx,tsx,mdx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#edf7ff',
+          100: '#d7ebff',
+          200: '#b6dcff',
+          300: '#7dbdff',
+          400: '#4f9cff',
+          500: '#257cf4',
+          600: '#1c63d3',
+          700: '#174ead',
+          800: '#173f8c',
+          900: '#16356d',
+        },
+        accent: {
+          50: '#eefdf8',
+          500: '#1ecf9d',
+          600: '#13b087',
+        },
+        success: '#22c55e',
+        warning: '#eab308',
+        danger: '#ef4444',
+      },
+      boxShadow: {
+        soft: '0 18px 45px rgba(15, 23, 42, 0.08)',
+      },
+      backgroundImage: {
+        glow: 'radial-gradient(circle at top, rgba(59,130,246,0.2), transparent 45%)'
+      }
+    }
+  },
+  plugins: []
+};
+
+export default config;
